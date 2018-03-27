@@ -9,6 +9,39 @@ import "draft-js-mention-plugin/lib/plugin.css";
 import mentions from "./mentions";
 import "./App.css";
 
+
+function positionSuggestionsBelowTextFullWidth(containerClassName) {
+    function findContainer(element) {
+        if (element === null || element.classList.contains(containerClassName)) {
+            return element;
+        }
+
+        return findContainer(element.parentElement);
+    }
+
+    return ({state, props, popover, decoratorRect}) => {
+        const container = findContainer(popover, containerClassName);
+
+        if (state.isActive && props.suggestions.size > 0) {
+            const containerRect = container.getBoundingClientRect();
+            const scrollTop = container.scrollTop;
+
+            return {
+                maxWidth: 'none',
+                width: `${container.clientWidth}px`,
+                top: `${decoratorRect.bottom + scrollTop - containerRect.top}px`,
+                transform: `scaleY(1)`
+            };
+        } else if (state.isActive) {
+            return {
+                transform: 'scaleY(0)'
+            };
+        }
+
+        return {};
+    }
+}
+
 class App extends React.Component {
 
     constructor(props) {
@@ -19,7 +52,9 @@ class App extends React.Component {
             suggestions: mentions
         };
 
-        this.mentionPlugin = createMentionPlugin();
+        this.mentionPlugin = createMentionPlugin({
+            positionSuggestions: positionSuggestionsBelowTextFullWidth('test-editor-container')
+        });
     }
 
     onChange = (editor) => {
@@ -35,17 +70,16 @@ class App extends React.Component {
         const plugins = [this.mentionPlugin];
 
         return (
-            <div className="w-100 h-100 d-flex align-items-center">
-                <div className="border w-50 mx-auto h-50 px-2"
-                     style={{overflow: 'auto'}}
-                     onClick={() => this.editor.focus()}>
+            <div className="test-editor-container border w-100 h-100"
+                 style={{overflow: 'auto', position: 'relative'}}
+                 onClick={() => this.editor.focus()}>
+                <div className="px-3">
                     <Editor ref={ref => this.editor = ref} editorState={this.state.editor}
                             onChange={this.onChange}
                             plugins={plugins}/>
-
-                    <MentionSuggestions suggestions={this.state.suggestions}
-                                        onSearchChange={this.onSearchChange}/>
                 </div>
+                <MentionSuggestions suggestions={this.state.suggestions}
+                                    onSearchChange={this.onSearchChange}/>
             </div>
         );
     }
